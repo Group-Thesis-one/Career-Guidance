@@ -4,25 +4,45 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.google.firebase.analytics.FirebaseAnalytics
-import com.google.firebase.analytics.ktx.analytics
-import com.google.firebase.ktx.Firebase
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.careerguidance.ui.auth.LoginScreen
+import com.example.careerguidance.ui.auth.SignupScreen
+import com.google.android.gms.auth.api.identity.BeginSignInRequest
+import com.google.android.gms.auth.api.identity.Identity
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var analytics: FirebaseAnalytics
+    private val auth = FirebaseAuth.getInstance()
+
+    private val googleLauncher =
+        registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            try {
+                val credential = Identity.getSignInClient(this)
+                    .getSignInCredentialFromIntent(result.data)
+                val token = credential.googleIdToken
+
+                val firebaseCred = GoogleAuthProvider.getCredential(token, null)
+                auth.signInWithCredential(firebaseCred)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        analytics = Firebase.analytics
 
         setContent {
             App()
@@ -31,46 +51,63 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun App() {
-        MaterialTheme {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                HomeScreen(onTestAnalytics = { sendTestEvent() })
+        val nav = rememberNavController()
+
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+
+            NavHost(navController = nav, startDestination = "login") {
+
+                composable("login") {
+                    LoginScreen(
+                        onLoginSuccess = {
+                            nav.navigate("home") {
+                                popUpTo("login") { inclusive = true }
+                            }
+                        },
+                        onGoogleLogin = { googleSignIn() },
+                        onSignupClick = { nav.navigate("signup") }
+                    )
+                }
+
+                composable("signup") {
+                    SignupScreen(
+                        onSignupSuccess = {
+                            nav.navigate("home") {
+                                popUpTo("signup") { inclusive = true }
+                            }
+                        },
+                        onBackToLogin = { nav.navigate("login") }
+                    )
+                }
+
+                composable("home") {
+                    Text("Home Screen")
+                }
             }
         }
     }
 
-    private fun sendTestEvent() {
-        val bundle = Bundle().apply {
-            putString("screen", "HomeScreen")
-            putString("action", "TestButtonClicked")
-        }
-        analytics.logEvent("test_event", bundle)
-    }
-}
+    private fun googleSignIn() {
+        val request = BeginSignInRequest.builder()
+            .setGoogleIdTokenRequestOptions(
+                BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
+                    .setSupported(true)
+                    .setServerClientId(getString(R.string.default_web_client_id))
+                    .setFilterByAuthorizedAccounts(false)
+                    .build()
+            )
+            .build()
 
-@Composable
-fun HomeScreen(onTestAnalytics: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-
-        Text(
-            text = "Welcome to Career Guidance!",
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = onTestAnalytics
-        ) {
-            Text("Send Firebase Test Event")
-        }
+        Identity.getSignInClient(this)
+            .beginSignIn(request)
+            .addOnSuccessListener {
+                googleLauncher.launch(
+                    IntentSenderRequest.Builder(it.pendingIntent).build()
+                )
+            }
+            .addOnFailureListener { it.printStackTrace() }
     }
 }

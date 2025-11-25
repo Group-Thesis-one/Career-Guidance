@@ -12,7 +12,20 @@
           "package_name": "com.example.careerguidance"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "275862584626-6jjtjsusr1r4t3290c1iiiuuebisb7cg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.careerguidance",
+            "certificate_hash": "6100b2b1a7b1f8c9cc051d3583df610ec4504cb1"
+          }
+        },
+        {
+          "client_id": "275862584626-tue24k1tajk7kl1ul5lpebkqq7ijd62f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDwL8hDzfnSf8LM4Zhk4HDINxM_73oVKag"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "275862584626-tue24k1tajk7kl1ul5lpebkqq7ijd62f.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

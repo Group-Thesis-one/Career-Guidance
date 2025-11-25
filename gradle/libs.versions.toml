@@ -5,13 +5,15 @@ composeCompiler = "2.0.0"
 composeBom = "2024.06.00"
 firebaseBom = "33.1.2"
 gmsGoogleServices = "4.4.2"
+googleAuth = "20.7.0"
 
 [libraries]
+# AndroidX
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version = "1.13.1" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version = "2.8.3" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version = "1.9.0" }
 
-# Compose (versions come from BOM)
+# Compose libraries (use BOM for version)
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
@@ -21,8 +23,12 @@ androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-toolin
 # Compose BOM
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 
-# Firebase BOM
-firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+# Firebase
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-auth = { module = "com.google.firebase:firebase-auth" }
+
+# Google Sign-In
+google-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "googleAuth" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
