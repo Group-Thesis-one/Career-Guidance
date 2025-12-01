@@ -9,14 +9,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.careerguidance.ui.auth.LoginScreen
 import com.example.careerguidance.ui.auth.SignupScreen
+import com.example.careerguidance.ui.home.HomeScreen
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.firebase.auth.FirebaseAuth
@@ -31,10 +31,15 @@ class MainActivity : ComponentActivity() {
             try {
                 val credential = Identity.getSignInClient(this)
                     .getSignInCredentialFromIntent(result.data)
-                val token = credential.googleIdToken
 
+                val token = credential.googleIdToken
                 val firebaseCred = GoogleAuthProvider.getCredential(token, null)
+
                 auth.signInWithCredential(firebaseCred)
+                    .addOnSuccessListener {
+                        // AuthStateListener will handle navigation
+                    }
+                    .addOnFailureListener { it.printStackTrace() }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -52,21 +57,43 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun App() {
         val nav = rememberNavController()
+        val auth = FirebaseAuth.getInstance()
+
+        // Current user state
+        var currentUser by remember { mutableStateOf(auth.currentUser) }
+
+        // Firebase auth listener (login/logout observer)
+        DisposableEffect(Unit) {
+            val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+                currentUser = firebaseAuth.currentUser
+            }
+            auth.addAuthStateListener(listener)
+
+            onDispose {
+                auth.removeAuthStateListener(listener)
+            }
+        }
+
+        // Navigate automatically when logged in
+        LaunchedEffect(currentUser) {
+            if (currentUser != null) {
+                nav.navigate("home") {
+                    popUpTo("login") { inclusive = true }
+                }
+            }
+        }
 
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
-
-            NavHost(navController = nav, startDestination = "login") {
+            NavHost(
+                navController = nav,
+                startDestination = if (currentUser != null) "home" else "login"
+            ) {
 
                 composable("login") {
                     LoginScreen(
-                        onLoginSuccess = {
-                            nav.navigate("home") {
-                                popUpTo("login") { inclusive = true }
-                            }
-                        },
                         onGoogleLogin = { googleSignIn() },
                         onSignupClick = { nav.navigate("signup") }
                     )
@@ -75,16 +102,21 @@ class MainActivity : ComponentActivity() {
                 composable("signup") {
                     SignupScreen(
                         onSignupSuccess = {
-                            nav.navigate("home") {
-                                popUpTo("signup") { inclusive = true }
-                            }
+                            // Navigation handled by AuthStateListener
                         },
                         onBackToLogin = { nav.navigate("login") }
                     )
                 }
 
                 composable("home") {
-                    Text("Home Screen")
+                    HomeScreen(
+                        onLogout = {
+                            FirebaseAuth.getInstance().signOut()
+                            nav.navigate("login") {
+                                popUpTo("home") { inclusive = true }
+                            }
+                        }
+                    )
                 }
             }
         }

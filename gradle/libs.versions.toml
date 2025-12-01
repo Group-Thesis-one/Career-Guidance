@@ -6,6 +6,7 @@ composeBom = "2024.06.00"
 firebaseBom = "33.1.2"
 gmsGoogleServices = "4.4.2"
 googleAuth = "20.7.0"
+material-icons="1.6.0"
 
 [libraries]
 # AndroidX
@@ -29,9 +30,12 @@ firebase-auth = { module = "com.google.firebase:firebase-auth" }
 
 # Google Sign-In
 google-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "googleAuth" }
+#icons
+androidx-compose-material-iconsExtended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "material-icons" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "composeCompiler" }
 gms-google-services = { id = "com.google.gms.google-services", version.ref = "gmsGoogleServices" }
+

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
@@ -15,6 +16,7 @@ fun SignupScreen(
     val viewModel: SignupViewModel = viewModel()
     val state = viewModel.uiState.collectAsState().value
 
+    // You can keep this if you want, but navigation will also be triggered globally
     if (state.success) onSignupSuccess()
 
     Column(
@@ -40,6 +42,7 @@ fun SignupScreen(
             value = state.password,
             onValueChange = viewModel::updatePassword,
             label = { Text("Password") },
+            visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
 
