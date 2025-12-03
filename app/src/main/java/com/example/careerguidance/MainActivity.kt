@@ -17,6 +17,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.careerguidance.ui.auth.LoginScreen
 import com.example.careerguidance.ui.auth.SignupScreen
 import com.example.careerguidance.ui.home.HomeScreen
+import com.example.careerguidance.ui.profile.ProfileScreen
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.firebase.auth.FirebaseAuth
@@ -31,7 +32,6 @@ class MainActivity : ComponentActivity() {
             try {
                 val credential = Identity.getSignInClient(this)
                     .getSignInCredentialFromIntent(result.data)
-
                 val token = credential.googleIdToken
                 val firebaseCred = GoogleAuthProvider.getCredential(token, null)
 
@@ -59,7 +59,6 @@ class MainActivity : ComponentActivity() {
         val nav = rememberNavController()
         val auth = FirebaseAuth.getInstance()
 
-        // Current user state
         var currentUser by remember { mutableStateOf(auth.currentUser) }
 
         // Firebase auth listener (login/logout observer)
@@ -102,7 +101,7 @@ class MainActivity : ComponentActivity() {
                 composable("signup") {
                     SignupScreen(
                         onSignupSuccess = {
-                            // Navigation handled by AuthStateListener
+                            // handled by AuthStateListener
                         },
                         onBackToLogin = { nav.navigate("login") }
                     )
@@ -110,6 +109,19 @@ class MainActivity : ComponentActivity() {
 
                 composable("home") {
                     HomeScreen(
+                        onProfileClick = { nav.navigate("profile") },
+                        onLogout = {
+                            FirebaseAuth.getInstance().signOut()
+                            nav.navigate("login") {
+                                popUpTo("home") { inclusive = true }
+                            }
+                        }
+                    )
+                }
+
+                composable("profile") {
+                    ProfileScreen(
+                        onBack = { nav.popBackStack() },
                         onLogout = {
                             FirebaseAuth.getInstance().signOut()
                             nav.navigate("login") {

@@ -4,18 +4,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun HomeScreen(
+    onProfileClick: () -> Unit,
     onLogout: () -> Unit
 ) {
     Scaffold(
@@ -23,7 +19,7 @@ fun HomeScreen(
             NavigationBar {
                 NavigationBarItem(
                     selected = true,
-                    onClick = { /* Already on Home */ },
+                    onClick = { /* already home */ },
                     icon = {
                         Icon(
                             imageVector = Icons.Filled.Home,
@@ -62,6 +58,15 @@ fun HomeScreen(
             Spacer(Modifier.height(20.dp))
 
             Text("This is the Home Screen.")
+
+            Spacer(Modifier.height(24.dp))
+
+            Button(
+                onClick = onProfileClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Go to Profile")
+            }
         }
     }
 }
