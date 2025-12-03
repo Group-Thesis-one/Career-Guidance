@@ -1,6 +1,7 @@
 package com.example.careerguidance
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -22,22 +23,54 @@ import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : ComponentActivity() {
 
     private val auth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
 
     private val googleLauncher =
         registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
             try {
                 val credential = Identity.getSignInClient(this)
                     .getSignInCredentialFromIntent(result.data)
+
                 val token = credential.googleIdToken
                 val firebaseCred = GoogleAuthProvider.getCredential(token, null)
 
                 auth.signInWithCredential(firebaseCred)
                     .addOnSuccessListener {
-                        // AuthStateListener will handle navigation
+                        val user = auth.currentUser
+                        if (user != null) {
+                            val uid = user.uid
+
+                            // Check role in Firestore – block company accounts
+                            firestore.collection("users")
+                                .document(uid)
+                                .get()
+                                .addOnSuccessListener { doc ->
+                                    val role = doc.getString("role")
+
+                                    if (role == "company") {
+                                        // Company is not allowed to use Google login
+                                        auth.signOut()
+                                        Toast.makeText(
+                                            this,
+                                            "Company accounts cannot use Google sign-in. Please log in with email and password.",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                        // currentUser becomes null → AuthStateListener keeps you on login
+                                    } else {
+                                        // applicant or no role → allowed
+                                        // AuthStateListener will navigate to home
+                                    }
+                                }
+                                .addOnFailureListener {
+                                    // If role doc can't be read, treat as applicant by default.
+                                    // AuthStateListener will still navigate.
+                                }
+                        }
                     }
                     .addOnFailureListener { it.printStackTrace() }
             } catch (e: Exception) {
@@ -61,7 +94,7 @@ class MainActivity : ComponentActivity() {
 
         var currentUser by remember { mutableStateOf(auth.currentUser) }
 
-        // Firebase auth listener (login/logout observer)
+        // Listen to login / logout changes
         DisposableEffect(Unit) {
             val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
                 currentUser = firebaseAuth.currentUser
@@ -73,7 +106,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Navigate automatically when logged in
+        // Auto navigate when user is logged in
         LaunchedEffect(currentUser) {
             if (currentUser != null) {
                 nav.navigate("home") {
@@ -90,7 +123,6 @@ class MainActivity : ComponentActivity() {
                 navController = nav,
                 startDestination = if (currentUser != null) "home" else "login"
             ) {
-
                 composable("login") {
                     LoginScreen(
                         onGoogleLogin = { googleSignIn() },
@@ -101,7 +133,7 @@ class MainActivity : ComponentActivity() {
                 composable("signup") {
                     SignupScreen(
                         onSignupSuccess = {
-                            // handled by AuthStateListener
+                            // AuthStateListener will handle navigation to home
                         },
                         onBackToLogin = { nav.navigate("login") }
                     )
