@@ -14,6 +14,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 @Composable
 fun HomeScreen(
     onProfileClick: () -> Unit,
+    onUploadCvClick: () -> Unit,
     onLogout: () -> Unit
 ) {
     val auth = FirebaseAuth.getInstance()
@@ -111,9 +112,18 @@ fun HomeScreen(
 
                 else -> {
                     Text(
-                        "Welcome Applicant! Explore jobs and update your profile...",
+                        "Welcome Applicant! Explore jobs and upload your CV.",
                         style = MaterialTheme.typography.bodyLarge
                     )
+
+                    Spacer(Modifier.height(24.dp))
+
+                    Button(
+                        onClick = onUploadCvClick,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Upload CV")
+                    }
                 }
             }
 

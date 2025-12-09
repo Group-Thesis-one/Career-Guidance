@@ -53,6 +53,12 @@ dependencies {
     // Firebase Authentication
     implementation(libs.firebase.auth)
 
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-storage-ktx")
+
+
     // Google Sign-In (Identity API)
     implementation(libs.google.auth)
     implementation(platform("com.google.firebase:firebase-bom:33.3.0"))
@@ -72,6 +78,10 @@ dependencies {
 
     //icons
     implementation(libs.androidx.compose.material.iconsExtended)
+
+    //supabase
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
 
 
     // Optional
