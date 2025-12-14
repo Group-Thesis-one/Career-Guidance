@@ -7,9 +7,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.google.firebase.Timestamp
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 
@@ -26,49 +28,99 @@ data class JobPost(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun JobsListScreen(
+fun JobsListingScreen(
     onBack: () -> Unit
 ) {
     val firestore = FirebaseFirestore.getInstance()
+    val auth = FirebaseAuth.getInstance()
+    val uid = auth.currentUser?.uid
 
+    var role by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var jobs by remember { mutableStateOf<List<JobPost>>(emptyList()) }
 
-    LaunchedEffect(Unit) {
-        firestore.collection("jobs")
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .addSnapshotListener { snap, e ->
-                if (e != null) {
-                    loading = false
-                    error = e.message
-                    return@addSnapshotListener
-                }
+    // Load user role
+    LaunchedEffect(uid) {
+        if (uid == null) {
+            role = "applicant"
+            loading = false
+            return@LaunchedEffect
+        }
 
-                val docs = snap?.documents ?: emptyList()
-                jobs = docs.mapNotNull { d ->
-                    val companyId = d.getString("companyId") ?: return@mapNotNull null
-                    JobPost(
-                        id = d.id,
-                        companyId = companyId,
-                        companyName = d.getString("companyName") ?: "",
-                        title = d.getString("title") ?: "",
-                        location = d.getString("location") ?: "",
-                        salary = d.getString("salary") ?: "",
-                        description = d.getString("description") ?: "",
-                        createdAt = d.getTimestamp("createdAt")
-                    )
-                }
-
-                loading = false
-                error = null
+        firestore.collection("users")
+            .document(uid)
+            .get()
+            .addOnSuccessListener { doc ->
+                role = doc.getString("role") ?: "applicant"
             }
+            .addOnFailureListener {
+                role = "applicant"
+            }
+    }
+
+    // Load jobs based on role
+    LaunchedEffect(role) {
+        if (role == null) return@LaunchedEffect
+
+        loading = true
+        error = null
+
+        val query = if (role == "company") {
+            // No orderBy → avoids Firestore index requirement
+            firestore.collection("jobs")
+                .whereEqualTo("companyId", uid)
+        } else {
+            firestore.collection("jobs")
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+        }
+
+        query.addSnapshotListener { snap, e ->
+            if (e != null) {
+                error = e.message
+                jobs = emptyList()
+                loading = false
+                return@addSnapshotListener
+            }
+
+            val docs = snap?.documents ?: emptyList()
+
+            var list = docs.mapNotNull { d ->
+                val companyId = d.getString("companyId") ?: return@mapNotNull null
+                JobPost(
+                    id = d.id,
+                    companyId = companyId,
+                    companyName = d.getString("companyName") ?: "",
+                    title = d.getString("title") ?: "",
+                    location = d.getString("location") ?: "",
+                    salary = d.getString("salary") ?: "",
+                    description = d.getString("description") ?: "",
+                    createdAt = d.getTimestamp("createdAt")
+                )
+            }
+
+            // Local sort for company jobs
+            if (role == "company") {
+                list = list.sortedByDescending { it.createdAt?.seconds ?: 0L }
+            }
+
+            jobs = list
+            loading = false
+            error = null
+        }
     }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Job Openings") },
+                title = {
+                    Text(
+                        if (role == "company")
+                            "My Job Openings"
+                        else
+                            "Job Openings"
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
@@ -77,28 +129,32 @@ fun JobsListScreen(
             )
         }
     ) { padding ->
+
         when {
             loading -> {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(padding),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
+                    contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
                 }
             }
 
-            error != null -> {
-                Column(
+            jobs.isEmpty() -> {
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding)
-                        .padding(20.dp)
+                        .padding(padding),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("Failed to load jobs:")
-                    Spacer(Modifier.height(8.dp))
-                    Text(error ?: "")
+                    Text(
+                        if (role == "company")
+                            "You have no jobs created right now."
+                        else
+                            "No job openings available."
+                    )
                 }
             }
 
@@ -111,9 +167,7 @@ fun JobsListScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(jobs) { job ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
+                        Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(job.title, style = MaterialTheme.typography.titleLarge)
                                 Spacer(Modifier.height(4.dp))

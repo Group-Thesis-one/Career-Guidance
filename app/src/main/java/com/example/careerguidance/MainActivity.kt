@@ -1,4 +1,3 @@
-// File: app/src/main/java/com/example/careerguidance/MainActivity.kt
 package com.example.careerguidance
 
 import android.content.Intent
@@ -29,7 +28,7 @@ import com.example.careerguidance.ui.auth.LoginScreen
 import com.example.careerguidance.ui.auth.SignupScreen
 import com.example.careerguidance.ui.home.HomeScreen
 import com.example.careerguidance.ui.jobs.JobCreateScreen
-import com.example.careerguidance.ui.jobs.JobsListScreen
+import com.example.careerguidance.ui.jobs.JobsListingScreen
 import com.example.careerguidance.ui.profile.ProfileScreen
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
@@ -273,7 +272,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 composable("jobs") {
-                    JobsListScreen(
+                    JobsListingScreen(
                         onBack = { nav.popBackStack() }
                     )
                 }
