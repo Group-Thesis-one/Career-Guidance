@@ -15,6 +15,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 fun HomeScreen(
     onProfileClick: () -> Unit,
     onUploadCvClick: () -> Unit,
+    onJobsClick: () -> Unit,
+    onCreateJobClick: () -> Unit,
     onLogout: () -> Unit
 ) {
     val auth = FirebaseAuth.getInstance()
@@ -24,7 +26,6 @@ fun HomeScreen(
     var role by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
 
-    // Load user role from Firestore
     LaunchedEffect(user) {
         if (user != null) {
             firestore.collection("users")
@@ -48,25 +49,14 @@ fun HomeScreen(
             NavigationBar {
                 NavigationBarItem(
                     selected = true,
-                    onClick = { /* already home */ },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Filled.Home,
-                            contentDescription = "Home"
-                        )
-                    },
+                    onClick = { },
+                    icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
                     label = { Text("Home") }
                 )
-
                 NavigationBarItem(
                     selected = false,
                     onClick = onLogout,
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Filled.Logout,
-                            contentDescription = "Logout"
-                        )
-                    },
+                    icon = { Icon(Icons.Filled.Logout, contentDescription = "Logout") },
                     label = { Text("Logout") }
                 )
             }
@@ -93,41 +83,38 @@ fun HomeScreen(
             verticalArrangement = Arrangement.Top
         ) {
             Text(
-                text = when (role) {
-                    "company" -> "Company Dashboard"
-                    else -> "Applicant Dashboard"
-                },
+                text = if (role == "company") "Company Dashboard" else "Applicant Dashboard",
                 style = MaterialTheme.typography.headlineMedium
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(18.dp))
 
-            when (role) {
-                "company" -> {
-                    Text(
-                        "Welcome, Company! View applicants and manage job postings soon...",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+            Button(
+                onClick = onJobsClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("View job openings")
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            if (role == "company") {
+                Button(
+                    onClick = onCreateJobClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Create job opening")
                 }
-
-                else -> {
-                    Text(
-                        "Welcome Applicant! Explore jobs and upload your CV.",
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-
-                    Spacer(Modifier.height(24.dp))
-
-                    Button(
-                        onClick = onUploadCvClick,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Upload CV")
-                    }
+            } else {
+                Button(
+                    onClick = onUploadCvClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Upload CV")
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(12.dp))
 
             Button(
                 onClick = onProfileClick,
