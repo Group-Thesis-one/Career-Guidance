@@ -7,24 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -42,6 +26,8 @@ fun ProfileScreen(
     val uid = auth.currentUser?.uid
     val firestore = FirebaseFirestore.getInstance()
     val context = LocalContext.current
+
+    var role by remember { mutableStateOf("applicant") }
 
     var email by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
@@ -61,30 +47,33 @@ fun ProfileScreen(
     var editedPhone by remember { mutableStateOf("") }
 
     LaunchedEffect(uid) {
-        if (uid != null) {
-            firestore.collection("users")
-                .document(uid)
-                .get()
-                .addOnSuccessListener { doc ->
-                    email = doc.getString("email") ?: ""
-                    name = doc.getString("name") ?: ""
-                    address = doc.getString("address") ?: ""
-                    phone = doc.getString("phone") ?: ""
-                    cvUrl = doc.getString("cvUrl")
-                    loading = false
-                }
-                .addOnFailureListener {
-                    loading = false
-                }
-        } else {
+        if (uid == null) {
             loading = false
+            return@LaunchedEffect
         }
+
+        firestore.collection("users")
+            .document(uid)
+            .get()
+            .addOnSuccessListener { doc ->
+                role = doc.getString("role") ?: "applicant"
+                email = doc.getString("email") ?: (auth.currentUser?.email ?: "")
+                name = doc.getString("name") ?: ""
+                address = doc.getString("address") ?: ""
+                phone = doc.getString("phone") ?: ""
+                cvUrl = doc.getString("cvUrl")
+                loading = false
+            }
+            .addOnFailureListener {
+                email = auth.currentUser?.email ?: ""
+                loading = false
+            }
     }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("User Profile") },
+                title = { Text(if (role == "company") "Company Profile" else "User Profile") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -116,21 +105,14 @@ fun ProfileScreen(
         ) {
 
             // EMAIL (read only)
-            Text(
-                text = "Email",
-                style = MaterialTheme.typography.titleMedium
-            )
+            Text("Email", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
-            Text(
-                text = email,
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Text(email, style = MaterialTheme.typography.bodyLarge)
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(Modifier.height(24.dp))
 
-            // NAME
             ProfileFieldWithEdit(
-                label = "Name",
+                label = if (role == "company") "Company Name" else "Name",
                 value = name,
                 isEditing = isEditingName,
                 editedValue = editedName,
@@ -147,14 +129,10 @@ fun ProfileScreen(
                             .addOnSuccessListener {
                                 name = editedName
                                 isEditingName = false
-                                Toast.makeText(context, "Name updated", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Updated", Toast.LENGTH_SHORT).show()
                             }
                             .addOnFailureListener { e ->
-                                Toast.makeText(
-                                    context,
-                                    "Failed to update name: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
                             }
                     }
                 },
@@ -164,9 +142,8 @@ fun ProfileScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(Modifier.height(24.dp))
 
-            // ADDRESS
             ProfileFieldWithEdit(
                 label = "Address",
                 value = address,
@@ -185,15 +162,10 @@ fun ProfileScreen(
                             .addOnSuccessListener {
                                 address = editedAddress
                                 isEditingAddress = false
-                                Toast.makeText(context, "Address updated", Toast.LENGTH_SHORT)
-                                    .show()
+                                Toast.makeText(context, "Updated", Toast.LENGTH_SHORT).show()
                             }
                             .addOnFailureListener { e ->
-                                Toast.makeText(
-                                    context,
-                                    "Failed to update address: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
                             }
                     }
                 },
@@ -203,9 +175,8 @@ fun ProfileScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(Modifier.height(24.dp))
 
-            // PHONE
             ProfileFieldWithEdit(
                 label = "Phone",
                 value = phone,
@@ -224,15 +195,10 @@ fun ProfileScreen(
                             .addOnSuccessListener {
                                 phone = editedPhone
                                 isEditingPhone = false
-                                Toast.makeText(context, "Phone updated", Toast.LENGTH_SHORT)
-                                    .show()
+                                Toast.makeText(context, "Updated", Toast.LENGTH_SHORT).show()
                             }
                             .addOnFailureListener { e ->
-                                Toast.makeText(
-                                    context,
-                                    "Failed to update phone: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                                Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
                             }
                     }
                 },
@@ -242,37 +208,29 @@ fun ProfileScreen(
                 }
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            // CV section only for applicants
+            if (role == "applicant") {
+                Spacer(modifier = Modifier.height(32.dp))
 
-            // CV SECTION
-            Text(
-                text = "Uploaded CV",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (cvUrl != null) {
-                Text(
-                    text = "Your CV is uploaded.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
+                Text("Uploaded CV", style = MaterialTheme.typography.titleMedium)
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Button(
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(cvUrl))
-                        context.startActivity(intent)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Open CV")
+                if (cvUrl != null) {
+                    Text("Your CV is uploaded.", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(cvUrl))
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Open CV")
+                    }
+                } else {
+                    Text("No CV uploaded yet.", style = MaterialTheme.typography.bodyMedium)
                 }
-            } else {
-                Text(
-                    text = "No CV uploaded yet.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
             }
 
             Spacer(modifier = Modifier.height(40.dp))
@@ -299,10 +257,7 @@ private fun ProfileFieldWithEdit(
     onSaveClick: () -> Unit,
     onCancelClick: () -> Unit
 ) {
-    Text(
-        text = label,
-        style = MaterialTheme.typography.titleMedium
-    )
+    Text(label, style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(4.dp))
 
     if (!isEditing) {
@@ -316,10 +271,7 @@ private fun ProfileFieldWithEdit(
                 modifier = Modifier.weight(1f)
             )
             IconButton(onClick = onEditClick) {
-                Icon(
-                    imageVector = Icons.Filled.Edit,
-                    contentDescription = "Edit $label"
-                )
+                Icon(Icons.Filled.Edit, contentDescription = "Edit $label")
             }
         }
     } else {
@@ -328,21 +280,17 @@ private fun ProfileFieldWithEdit(
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth()
         )
+
         Spacer(Modifier.height(8.dp))
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Button(
-                onClick = onSaveClick,
-                modifier = Modifier.weight(1f)
-            ) {
+            Button(onClick = onSaveClick, modifier = Modifier.weight(1f)) {
                 Text("Save")
             }
-            OutlinedButton(
-                onClick = onCancelClick,
-                modifier = Modifier.weight(1f)
-            ) {
+            OutlinedButton(onClick = onCancelClick, modifier = Modifier.weight(1f)) {
                 Text("Cancel")
             }
         }
