@@ -6,7 +6,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -27,12 +26,35 @@ fun JobCreateScreen(
     val uid = auth.currentUser?.uid
 
     var loading by remember { mutableStateOf(false) }
+    var loadingCompanyName by remember { mutableStateOf(true) }
 
     var companyName by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
     var salary by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+
+    // Auto-fill company name from Firestore: users/{uid}.name
+    LaunchedEffect(uid) {
+        if (uid == null) {
+            loadingCompanyName = false
+            return@LaunchedEffect
+        }
+
+        loadingCompanyName = true
+        firestore.collection("users")
+            .document(uid)
+            .get()
+            .addOnSuccessListener { doc ->
+                val nameFromProfile = doc.getString("name") ?: ""
+                companyName = nameFromProfile
+                loadingCompanyName = false
+            }
+            .addOnFailureListener { e ->
+                loadingCompanyName = false
+                Toast.makeText(context, "Failed to load company name: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+    }
 
     Scaffold(
         topBar = {
@@ -54,11 +76,16 @@ fun JobCreateScreen(
                 .fillMaxSize(),
             verticalArrangement = Arrangement.Top
         ) {
+
             OutlinedTextField(
                 value = companyName,
-                onValueChange = { companyName = it },
+                onValueChange = { /* disabled on purpose */ },
                 label = { Text("Company name") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = false,
+                supportingText = {
+                    if (loadingCompanyName) Text("Loading company name...")
+                }
             )
 
             Spacer(Modifier.height(12.dp))
@@ -108,7 +135,21 @@ fun JobCreateScreen(
                         return@Button
                     }
 
-                    if (companyName.isBlank() || title.isBlank() || location.isBlank() || description.isBlank()) {
+                    if (loadingCompanyName) {
+                        Toast.makeText(context, "Please wait, loading company name...", Toast.LENGTH_LONG).show()
+                        return@Button
+                    }
+
+                    if (companyName.isBlank()) {
+                        Toast.makeText(
+                            context,
+                            "Company name is empty. Please set your company name in Profile first.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        return@Button
+                    }
+
+                    if (title.isBlank() || location.isBlank() || description.isBlank()) {
                         Toast.makeText(context, "Please fill required fields", Toast.LENGTH_LONG).show()
                         return@Button
                     }
