@@ -1,6 +1,7 @@
 package com.example.careerguidance.ui.jobs
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.firebase.Timestamp
@@ -44,12 +46,15 @@ fun JobsListingScreen(
     var jobs by remember { mutableStateOf<List<JobPost>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    // applicant profile fields (for apply)
+    // applicant profile data
     var applicantCvUrl by remember { mutableStateOf<String?>(null) }
     var applicantName by remember { mutableStateOf("") }
     var applicantEmail by remember { mutableStateOf(auth.currentUser?.email ?: "") }
 
-    // load role + applicant profile data
+    // track jobs already applied to
+    val appliedJobs = remember { mutableStateMapOf<String, Boolean>() }
+
+    // load user role and applicant info
     LaunchedEffect(uid) {
         if (uid == null) {
             role = "applicant"
@@ -68,7 +73,6 @@ fun JobsListingScreen(
             }
             .addOnFailureListener { e ->
                 role = "applicant"
-                applicantEmail = auth.currentUser?.email ?: ""
                 error = e.message
             }
     }
@@ -82,10 +86,10 @@ fun JobsListingScreen(
 
         val query = if (role == "company") {
             firestore.collection("jobs")
-                .whereEqualTo("companyId", uid) // only my jobs
+                .whereEqualTo("companyId", uid)
         } else {
             firestore.collection("jobs")
-                .orderBy("createdAt", Query.Direction.DESCENDING) // all jobs
+                .orderBy("createdAt", Query.Direction.DESCENDING)
         }
 
         query.addSnapshotListener { snap, e ->
@@ -98,7 +102,7 @@ fun JobsListingScreen(
 
             val docs = snap?.documents ?: emptyList()
 
-            var list = docs.mapNotNull { d ->
+            val list = docs.mapNotNull { d ->
                 val companyId = d.getString("companyId") ?: return@mapNotNull null
                 JobPost(
                     id = d.id,
@@ -112,40 +116,43 @@ fun JobsListingScreen(
                 )
             }
 
-            if (role == "company") {
-                // local sort to avoid Firestore index requirement
-                list = list.sortedByDescending { it.createdAt?.seconds ?: 0L }
-            }
-
             jobs = list
             loading = false
-            error = null
+
+            // check which jobs applicant already applied to
+            if (role == "applicant" && uid != null) {
+                appliedJobs.clear()
+                list.forEach { job ->
+                    firestore.collection("jobs")
+                        .document(job.id)
+                        .collection("applications")
+                        .document(uid)
+                        .get()
+                        .addOnSuccessListener { doc ->
+                            appliedJobs[job.id] = doc.exists()
+                        }
+                }
+            }
         }
     }
 
     fun applyToJob(job: JobPost) {
-        val currentUid = auth.currentUser?.uid
-        if (currentUid == null) {
-            Toast.makeText(context, "Please login first", Toast.LENGTH_LONG).show()
-            return
-        }
+        val currentUid = auth.currentUser?.uid ?: return
 
-        if (role != "applicant") {
-            Toast.makeText(context, "Only applicants can apply", Toast.LENGTH_LONG).show()
-            return
-        }
-
-        val cv = applicantCvUrl
-        if (cv.isNullOrBlank()) {
-            Toast.makeText(context, "Upload your CV in Profile before applying.", Toast.LENGTH_LONG).show()
+        if (applicantCvUrl.isNullOrBlank()) {
+            Toast.makeText(
+                context,
+                "Upload your CV in Profile before applying.",
+                Toast.LENGTH_LONG
+            ).show()
             return
         }
 
         val applicationData = hashMapOf(
             "applicantId" to currentUid,
-            "applicantEmail" to applicantEmail,
             "applicantName" to applicantName,
-            "cvUrl" to cv,
+            "applicantEmail" to applicantEmail,
+            "cvUrl" to applicantCvUrl,
             "appliedAt" to Timestamp.now(),
             "jobId" to job.id,
             "companyId" to job.companyId
@@ -157,6 +164,7 @@ fun JobsListingScreen(
             .document(currentUid)
             .set(applicationData)
             .addOnSuccessListener {
+                appliedJobs[job.id] = true
                 Toast.makeText(context, "Applied successfully", Toast.LENGTH_LONG).show()
             }
             .addOnFailureListener { e ->
@@ -180,18 +188,16 @@ fun JobsListingScreen(
         when {
             loading -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
+                    modifier = Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
-                ) { CircularProgressIndicator() }
+                ) {
+                    CircularProgressIndicator()
+                }
             }
 
             error != null -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
+                    modifier = Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("Failed to load jobs.")
@@ -200,9 +206,7 @@ fun JobsListingScreen(
 
             jobs.isEmpty() -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
+                    modifier = Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -223,9 +227,34 @@ fun JobsListingScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(jobs) { job ->
+                        val alreadyApplied = appliedJobs[job.id] == true
+
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text(job.title, style = MaterialTheme.typography.titleLarge)
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        job.title,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    if (alreadyApplied) {
+                                        Text(
+                                            text = "Applied",
+                                            color = Color.White,
+                                            modifier = Modifier
+                                                .background(
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    shape = MaterialTheme.shapes.small
+                                                )
+                                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
+
                                 Spacer(Modifier.height(4.dp))
                                 Text(job.companyName, style = MaterialTheme.typography.titleMedium)
                                 Spacer(Modifier.height(4.dp))
@@ -234,6 +263,7 @@ fun JobsListingScreen(
                                     Spacer(Modifier.height(4.dp))
                                     Text("Salary: ${job.salary}")
                                 }
+
                                 Spacer(Modifier.height(10.dp))
                                 Text(job.description)
 
@@ -242,15 +272,25 @@ fun JobsListingScreen(
                                 if (role == "applicant") {
                                     Button(
                                         onClick = { applyToJob(job) },
+                                        enabled = !alreadyApplied,
                                         modifier = Modifier.fillMaxWidth()
-                                    ) { Text("Apply") }
+                                    ) {
+                                        Text(
+                                            if (alreadyApplied)
+                                                "Already applied"
+                                            else
+                                                "Apply"
+                                        )
+                                    }
                                 }
 
                                 if (role == "company") {
                                     Button(
                                         onClick = { onViewApplicants(job.id) },
                                         modifier = Modifier.fillMaxWidth()
-                                    ) { Text("View applicants") }
+                                    ) {
+                                        Text("View applicants")
+                                    }
                                 }
                             }
                         }
