@@ -29,6 +29,7 @@ import com.example.careerguidance.ui.auth.SignupScreen
 import com.example.careerguidance.ui.home.HomeScreen
 import com.example.careerguidance.ui.jobs.JobCreateScreen
 import com.example.careerguidance.ui.jobs.JobsListingScreen
+import com.example.careerguidance.ui.jobs.ApplicantsListScreen
 import com.example.careerguidance.ui.profile.ProfileScreen
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
@@ -273,6 +274,17 @@ class MainActivity : ComponentActivity() {
 
                 composable("jobs") {
                     JobsListingScreen(
+                        onBack = { nav.popBackStack() },
+                        onViewApplicants = { jobId ->
+                            nav.navigate("applicants/$jobId")
+                        }
+                    )
+                }
+
+                composable("applicants/{jobId}") { backStackEntry ->
+                    val jobId = backStackEntry.arguments?.getString("jobId") ?: ""
+                    ApplicantsListScreen(
+                        jobId = jobId,
                         onBack = { nav.popBackStack() }
                     )
                 }
