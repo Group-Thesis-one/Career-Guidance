@@ -1,6 +1,5 @@
 package com.example.careerguidance
 
-import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -24,6 +23,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.careerguidance.data.SupabaseConfig
+import com.example.careerguidance.data.cv.CvParser
+import com.example.careerguidance.data.recommendation.SkillNormalizer
 import com.example.careerguidance.ui.auth.LoginScreen
 import com.example.careerguidance.ui.auth.SignupScreen
 import com.example.careerguidance.ui.home.HomeScreen
@@ -38,6 +39,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -100,7 +102,7 @@ class MainActivity : ComponentActivity() {
 
         var currentUser by remember { mutableStateOf(auth.currentUser) }
 
-        // Pick a PDF and upload to Supabase, then save cvUrl in Firestore
+        // Pick a PDF and upload to Supabase, parse locally, then save cvUrl + autofill fields in Firestore
         val uploadCvLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument()
         ) { uri ->
@@ -149,6 +151,30 @@ class MainActivity : ComponentActivity() {
 
             Thread {
                 try {
+                    // 1) parse CV locally (free, no API)
+                    val normalizer = SkillNormalizer()
+                    val skillOptions = listOf(
+                        "kotlin", "jetpack compose", "mvvm", "git", "rest api",
+                        "firebase auth", "firebase firestore", "room", "coroutines",
+                        "sql", "postgresql", "java", "javascript", "react", "nodejs",
+                        "docker", "linux", "testing", "api testing", "postman",
+                        "python", "statistics", "machine learning",
+                        "ui design", "ux research", "figma"
+                    )
+
+                    val extracted = try {
+                        PDFBoxResourceLoader.init(context)
+                        val text = CvParser.extractTextFromPdfBytes(fileBytes)
+                        CvParser.extractProfileFromText(
+                            rawText = text,
+                            skillOptions = skillOptions,
+                            normalizer = normalizer
+                        )
+                    } catch (e: Exception) {
+                        null
+                    }
+
+                    // 2) upload to Supabase
                     val response: Response = httpClient.newCall(request).execute()
                     val bodyText = response.body?.string() ?: ""
 
@@ -163,14 +189,23 @@ class MainActivity : ComponentActivity() {
                         return@Thread
                     }
 
-                    // Bucket must be public for this URL to work
+                    // 3) save cvUrl + extracted profile fields to Firestore
                     val publicUrl =
                         "${SupabaseConfig.SUPABASE_URL}/storage/v1/object/public/${SupabaseConfig.SUPABASE_BUCKET}/$objectPath"
 
-                    val userData = mapOf(
+                    val userData = mutableMapOf<String, Any>(
                         "cvUrl" to publicUrl,
                         "email" to (user.email ?: "")
                     )
+
+                    if (extracted != null) {
+                        extracted.educationLevel?.let { userData["educationLevel"] = it }
+                        extracted.major?.let { userData["major"] = it }
+                        extracted.experienceYears?.let { userData["experienceYears"] = it }
+                        if (extracted.skillsRaw.isNotEmpty()) userData["skillsRaw"] = extracted.skillsRaw
+                        if (extracted.skillsNormalized.isNotEmpty()) userData["skillsNormalized"] = extracted.skillsNormalized
+                        extracted.phone?.let { userData["phone"] = it }
+                    }
 
                     firestore.collection("users")
                         .document(uid)
@@ -179,7 +214,8 @@ class MainActivity : ComponentActivity() {
                             runOnUiThread {
                                 Toast.makeText(
                                     context,
-                                    "CV uploaded successfully",
+                                    if (extracted == null) "CV uploaded. Autofill not available for this PDF."
+                                    else "CV uploaded and profile autofilled",
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -188,7 +224,7 @@ class MainActivity : ComponentActivity() {
                             runOnUiThread {
                                 Toast.makeText(
                                     context,
-                                    "Upload OK, failed to save URL: ${e.message}",
+                                    "Upload OK, failed to save: ${e.message}",
                                     Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -206,7 +242,6 @@ class MainActivity : ComponentActivity() {
             }.start()
         }
 
-        // Auth state listener
         DisposableEffect(Unit) {
             val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
                 currentUser = firebaseAuth.currentUser
@@ -215,7 +250,6 @@ class MainActivity : ComponentActivity() {
             onDispose { auth.removeAuthStateListener(listener) }
         }
 
-        // Navigate to home when logged in
         LaunchedEffect(currentUser) {
             if (currentUser != null) {
                 nav.navigate("home") {
@@ -274,7 +308,6 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                // new: recommendations screen
                 composable("recommendations") {
                     RecommendationsScreen(
                         onBack = { nav.popBackStack() }

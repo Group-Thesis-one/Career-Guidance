@@ -70,5 +70,9 @@ dependencies {
     // Supabase upload + JSON
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
+
+    //pdf text extraction library
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+
 }
 
