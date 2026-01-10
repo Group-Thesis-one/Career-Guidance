@@ -13,3 +13,5 @@
 .externalNativeBuild
 .cxx
 local.properties
+gitkey.pub
+gitkey.pub.pub
