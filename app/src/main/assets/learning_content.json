@@ -1,0 +1,72 @@
+[
+  {
+    "skill": "kotlin",
+    "why": "Core language for Android development.",
+    "steps": [
+      "Learn Kotlin basics: variables, functions, classes, null safety.",
+      "Practice collections, data classes, sealed classes.",
+      "Build a small app feature (login screen) using Kotlin only.",
+      "Learn coroutines basics (launch, suspend, async/await)."
+    ]
+  },
+  {
+    "skill": "jetpack compose",
+    "why": "Modern Android UI toolkit used in most new projects.",
+    "steps": [
+      "Understand Composable functions and state (remember, mutableStateOf).",
+      "Build a simple UI: list + details screen.",
+      "Learn layouts: Column, Row, LazyColumn, modifiers.",
+      "Add navigation-compose between screens."
+    ]
+  },
+  {
+    "skill": "mvvm",
+    "why": "Keeps UI and logic separated for maintainable apps.",
+    "steps": [
+      "Understand ViewModel responsibilities (state, events).",
+      "Create UI state data classes and StateFlow.",
+      "Implement repository layer for data access.",
+      "Refactor one screen to MVVM with clean state updates."
+    ]
+  },
+  {
+    "skill": "git",
+    "why": "Essential for teamwork and version control.",
+    "steps": [
+      "Practice add/commit/push/pull.",
+      "Create branches and open a pull request.",
+      "Learn resolving merge conflicts.",
+      "Use .gitignore correctly and keep commits small."
+    ]
+  },
+  {
+    "skill": "rest api",
+    "why": "Most apps consume backend APIs.",
+    "steps": [
+      "Understand HTTP methods, status codes, headers.",
+      "Use Retrofit to call an API and parse JSON.",
+      "Handle loading, error and success states.",
+      "Add pagination or search to practice real API usage."
+    ]
+  },
+  {
+    "skill": "sql",
+    "why": "Required for many backend/data roles.",
+    "steps": [
+      "Learn SELECT, WHERE, JOIN, GROUP BY.",
+      "Practice on sample tables (users, orders).",
+      "Learn indexes and basic query optimization.",
+      "Create a small project: store and query data for reporting."
+    ]
+  },
+  {
+    "skill": "docker",
+    "why": "Common requirement in backend/devops roles.",
+    "steps": [
+      "Learn Dockerfile basics and build an image.",
+      "Run a container and map ports.",
+      "Use docker-compose for multi-service setup.",
+      "Containerize a small API + database locally."
+    ]
+  }
+]

@@ -6,6 +6,8 @@ import com.tom_roush.pdfbox.text.PDFTextStripper
 import java.util.Locale
 
 data class CvExtractedProfile(
+    val name: String? = null,
+    val location: String? = null,
     val educationLevel: String? = null,
     val major: String? = null,
     val experienceYears: Int? = null,
@@ -30,22 +32,36 @@ object CvParser {
         skillOptions: List<String>,
         normalizer: SkillNormalizer
     ): CvExtractedProfile {
-        val text = rawText
+
+        // Keep original for header parsing
+        val cleaned = rawText
             .replace("\r", "\n")
             .replace(Regex("[ \t]+"), " ")
-            .lowercase(Locale.getDefault())
+            .trim()
+
+        val headerLines = cleaned
+            .lines()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .take(25)
+
+        val extractedName = extractNameFromHeader(headerLines)
+        val extractedLocation = extractLocationFromHeader(headerLines)
+
+        // Lowercase for keyword matching
+        val text = cleaned.lowercase(Locale.getDefault())
 
         val phone = extractPhone(text)
-
         val education = detectEducation(text)
         val major = detectMajor(text)
-
         val expYears = extractExperienceYears(text)
 
         val detectedSkills = detectSkills(text, skillOptions)
         val normalized = normalizer.normalizeAll(detectedSkills).toList().sorted()
 
         return CvExtractedProfile(
+            name = extractedName,
+            location = extractedLocation,
             educationLevel = education,
             major = major,
             experienceYears = expYears,
@@ -55,13 +71,69 @@ object CvParser {
         )
     }
 
+    private fun extractNameFromHeader(headerLines: List<String>): String? {
+        val banned = listOf(
+            "professional summary",
+            "core competencies",
+            "professional experience",
+            "experience",
+            "education",
+            "skills",
+            "projects",
+            "certifications",
+            "curriculum vitae",
+            "resume"
+        )
+
+        // Find a line that looks like a person's name (usually first line)
+        val candidates = headerLines.filter { line ->
+            val l = line.lowercase()
+            if (banned.any { l.contains(it) }) return@filter false
+            if (l.contains("@")) return@filter false
+            if (l.contains("http")) return@filter false
+            if (line.length !in 5..40) return@filter false
+
+            val letters = line.count { it.isLetter() }
+            val spaces = line.count { it == ' ' }
+            val other = line.length - letters - spaces
+            other <= 2 && letters >= 5 && spaces >= 1
+        }
+
+        if (candidates.isEmpty()) return null
+
+        val best = candidates.first()
+
+        // Convert "ASMITA KARKI" -> "Asmita Karki"
+        return best
+            .trim()
+            .split(Regex("\\s+"))
+            .joinToString(" ") { word ->
+                word.lowercase().replaceFirstChar { c -> c.uppercaseChar() }
+            }
+    }
+
+    private fun extractLocationFromHeader(headerLines: List<String>): String? {
+        // Matches "Kathmandu, Nepal" or "Oulu, Finland"
+        val locationRegex = Regex("([A-Za-z][A-Za-z .'-]{1,40}),\\s*([A-Za-z][A-Za-z .'-]{1,40})")
+
+        for (line in headerLines) {
+            val match = locationRegex.find(line) ?: continue
+            val city = match.groupValues[1].trim()
+            val country = match.groupValues[2].trim()
+
+            if (city.length in 2..30 && country.length in 2..30) {
+                return "${city.replaceFirstChar { it.uppercaseChar() }}, ${country.replaceFirstChar { it.uppercaseChar() }}"
+            }
+        }
+        return null
+    }
+
     private fun extractPhone(text: String): String? {
         val r = Regex("(\\+?\\d[\\d \\-()]{7,}\\d)")
         return r.find(text)?.value?.trim()
     }
 
     private fun extractExperienceYears(text: String): Int? {
-        // examples: "2 years", "3+ years", "over 5 years"
         val r = Regex("(\\d{1,2})\\s*\\+?\\s*(years|year)\\s*(of\\s*)?(experience|exp)?")
         val m = r.find(text) ?: return null
         return m.groupValues[1].toIntOrNull()
@@ -82,7 +154,7 @@ object CvParser {
         return when {
             "computer science" in text || "computing" in text -> "Computer Science"
             "software engineering" in text -> "Software Engineering"
-            "information technology" in text || "it " in text -> "Information Technology"
+            "information technology" in text -> "Information Technology"
             "data science" in text || "data analytics" in text -> "Data Science"
             "cybersecurity" in text || "information security" in text -> "Cybersecurity"
             "business" in text || "management" in text -> "Business"
@@ -93,7 +165,7 @@ object CvParser {
     private fun detectSkills(text: String, skillOptions: List<String>): List<String> {
         val found = mutableSetOf<String>()
         for (s in skillOptions) {
-            val needle = s.lowercase(Locale.getDefault())
+            val needle = s.lowercase(Locale.getDefault()).trim()
             if (needle.isNotBlank() && text.contains(needle)) {
                 found.add(needle)
             }

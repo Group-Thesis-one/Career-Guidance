@@ -1,32 +1,54 @@
 package com.example.careerguidance.ui.recommendation
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun RecommendationsScreen(
     onBack: () -> Unit
 ) {
-    val vm: RecommendationsViewModel = viewModel()
-    val state by vm.uiState.collectAsState()
+    val vm: GoalPlanViewModel = viewModel()
+    val state by vm.ui.collectAsState()
+
+    LaunchedEffect(Unit) {
+        vm.load()
+    }
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Career Recommendations") },
+                title = { Text("Career Plan") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
@@ -36,83 +58,104 @@ fun RecommendationsScreen(
         }
     ) { padding ->
 
-        when {
-            state.loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+        if (state.loading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
+
+        val scroll = rememberScrollState()
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(scroll)
+                .padding(20.dp)
+        ) {
+
+            state.error?.let {
+                Text(it, color = MaterialTheme.colorScheme.error)
+                Spacer(Modifier.height(12.dp))
+            }
+
+            Text(
+                "Goal: ${state.goalRole.ifBlank { "(not set)" }}",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(Modifier.height(6.dp))
+            Text("Experience years: ${state.experienceYears}", style = MaterialTheme.typography.bodyMedium)
+
+            val plan = state.plan
+            if (plan != null) {
+                Spacer(Modifier.height(10.dp))
+                Text("Readiness score: ${plan.readinessScore}/100", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Required matched: ${plan.requiredMatched}/${plan.requiredTotal}   Optional matched: ${plan.optionalMatched}/${plan.optionalTotal}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                state.scoreDelta?.let { d ->
+                    Spacer(Modifier.height(4.dp))
+                    Text("Change since last check: ${if (d >= 0) "+$d" else "$d"}", style = MaterialTheme.typography.bodySmall)
                 }
             }
 
-            state.error != null -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .padding(20.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(state.error ?: "Error")
-                        Spacer(Modifier.height(12.dp))
-                        Button(onClick = { vm.loadRecommendations() }) {
-                            Text("Retry")
-                        }
+            Spacer(Modifier.height(16.dp))
+
+            Text("Your skills (normalized)", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+
+            if (state.skills.isEmpty()) {
+                Text("(no skills found yet)", style = MaterialTheme.typography.bodyMedium)
+            } else {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.skills.forEach { s ->
+                        AssistChip(onClick = { }, label = { Text(s) })
                     }
                 }
             }
 
-            else -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item {
-                        Text(
-                            "Top 10 roles based on your skills",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Spacer(Modifier.height(6.dp))
-                    }
+            Spacer(Modifier.height(20.dp))
 
-                    items(state.recommendations) { rec ->
+            if (plan != null) {
+                Text("What to work on next", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+
+                val topMissing = plan.missingSkills.take(10)
+
+                if (topMissing.isEmpty()) {
+                    Text("You already match all listed skills for this goal.", style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    topMissing.forEachIndexed { index, item ->
                         Card(
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 10.dp)
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
-                                val percent = (rec.score * 100).roundToInt()
-                                Text(rec.title, style = MaterialTheme.typography.titleLarge)
+                                Text("${index + 1}. ${item.skill}", style = MaterialTheme.typography.titleMedium)
                                 Spacer(Modifier.height(4.dp))
-                                Text("Match score: $percent%")
-
-                                if (rec.matchedSkills.isNotEmpty()) {
-                                    Spacer(Modifier.height(10.dp))
-                                    Text("Matched skills:", style = MaterialTheme.typography.titleMedium)
-                                    Text(rec.matchedSkills.joinToString(", "))
-                                }
-
-                                if (rec.missingRequired.isNotEmpty()) {
-                                    Spacer(Modifier.height(10.dp))
-                                    Text("Missing required skills:", style = MaterialTheme.typography.titleMedium)
-                                    Text(rec.missingRequired.joinToString(", "))
-                                }
-
-                                if (rec.missingOptional.isNotEmpty()) {
-                                    Spacer(Modifier.height(10.dp))
-                                    Text("Missing optional skills:", style = MaterialTheme.typography.titleMedium)
-                                    Text(rec.missingOptional.joinToString(", "))
-                                }
+                                Text(
+                                    text = if (item.isRequired) "Type: required" else "Type: optional",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text("Why: ${item.reason}", style = MaterialTheme.typography.bodyMedium)
+                                Spacer(Modifier.height(4.dp))
+                                Text("Score: ${item.score}", style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
                 }
+            } else {
+                Text("Set a goal to get a personalized plan.", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

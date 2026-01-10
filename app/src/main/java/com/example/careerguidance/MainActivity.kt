@@ -27,10 +27,12 @@ import com.example.careerguidance.data.cv.CvParser
 import com.example.careerguidance.data.recommendation.SkillNormalizer
 import com.example.careerguidance.ui.auth.LoginScreen
 import com.example.careerguidance.ui.auth.SignupScreen
-import com.example.careerguidance.ui.home.HomeScreen
+import com.example.careerguidance.ui.HomeScreen
+import com.example.careerguidance.ui.impact.SkillImpactScreen
 import com.example.careerguidance.ui.jobs.ApplicantsListScreen
 import com.example.careerguidance.ui.jobs.JobCreateScreen
 import com.example.careerguidance.ui.jobs.JobsListingScreen
+import com.example.careerguidance.ui.plan.ActionPlanScreen
 import com.example.careerguidance.ui.profile.ProfileScreen
 import com.example.careerguidance.ui.recommendation.RecommendationsScreen
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
@@ -102,7 +104,6 @@ class MainActivity : ComponentActivity() {
 
         var currentUser by remember { mutableStateOf(auth.currentUser) }
 
-        // Pick a PDF and upload to Supabase, parse locally, then save cvUrl + autofill fields in Firestore
         val uploadCvLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument()
         ) { uri ->
@@ -151,7 +152,7 @@ class MainActivity : ComponentActivity() {
 
             Thread {
                 try {
-                    // 1) parse CV locally (free, no API)
+                    // 1) Parse CV locally (no API)
                     val normalizer = SkillNormalizer()
                     val skillOptions = listOf(
                         "kotlin", "jetpack compose", "mvvm", "git", "rest api",
@@ -170,11 +171,11 @@ class MainActivity : ComponentActivity() {
                             skillOptions = skillOptions,
                             normalizer = normalizer
                         )
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         null
                     }
 
-                    // 2) upload to Supabase
+                    // 2) Upload to Supabase
                     val response: Response = httpClient.newCall(request).execute()
                     val bodyText = response.body?.string() ?: ""
 
@@ -189,16 +190,16 @@ class MainActivity : ComponentActivity() {
                         return@Thread
                     }
 
-                    // 3) save cvUrl + extracted profile fields to Firestore
+                    // 3) Save cvUrl + extracted profile fields to Firestore
                     val publicUrl =
                         "${SupabaseConfig.SUPABASE_URL}/storage/v1/object/public/${SupabaseConfig.SUPABASE_BUCKET}/$objectPath"
 
                     val userData = mutableMapOf<String, Any>(
-                        "cvUrl" to publicUrl,
-                        "email" to (user.email ?: "")
+                        "cvUrl" to publicUrl
                     )
 
                     if (extracted != null) {
+                        extracted.location?.let { userData["location"] = it }
                         extracted.educationLevel?.let { userData["educationLevel"] = it }
                         extracted.major?.let { userData["major"] = it }
                         extracted.experienceYears?.let { userData["experienceYears"] = it }
@@ -207,27 +208,67 @@ class MainActivity : ComponentActivity() {
                         extracted.phone?.let { userData["phone"] = it }
                     }
 
+                    // Name: set only once (if not locked and currently empty)
                     firestore.collection("users")
                         .document(uid)
-                        .set(userData, SetOptions.merge())
-                        .addOnSuccessListener {
-                            runOnUiThread {
-                                Toast.makeText(
-                                    context,
-                                    if (extracted == null) "CV uploaded. Autofill not available for this PDF."
-                                    else "CV uploaded and profile autofilled",
-                                    Toast.LENGTH_LONG
-                                ).show()
+                        .get()
+                        .addOnSuccessListener { doc ->
+                            val locked = doc.getBoolean("nameLocked") ?: false
+                            val existingName = doc.getString("name").orEmpty()
+
+                            if (!locked && existingName.isBlank()) {
+                                val cvName = extracted?.name
+                                if (!cvName.isNullOrBlank()) {
+                                    userData["name"] = cvName
+                                    userData["nameLocked"] = true
+                                }
                             }
+
+                            firestore.collection("users")
+                                .document(uid)
+                                .set(userData, SetOptions.merge())
+                                .addOnSuccessListener {
+                                    runOnUiThread {
+                                        Toast.makeText(
+                                            context,
+                                            if (extracted == null) "CV uploaded. Autofill not available for this PDF."
+                                            else "CV uploaded and profile autofilled",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
+                                .addOnFailureListener { e ->
+                                    runOnUiThread {
+                                        Toast.makeText(
+                                            context,
+                                            "Upload OK, failed to save: ${e.message}",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
                         }
                         .addOnFailureListener { e ->
-                            runOnUiThread {
-                                Toast.makeText(
-                                    context,
-                                    "Upload OK, failed to save: ${e.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
+                            firestore.collection("users")
+                                .document(uid)
+                                .set(userData, SetOptions.merge())
+                                .addOnSuccessListener {
+                                    runOnUiThread {
+                                        Toast.makeText(
+                                            context,
+                                            "CV uploaded (saved without name).",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
+                                .addOnFailureListener { e2 ->
+                                    runOnUiThread {
+                                        Toast.makeText(
+                                            context,
+                                            "Upload OK, failed to save: ${e2.message ?: e.message}",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
                         }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -242,6 +283,7 @@ class MainActivity : ComponentActivity() {
             }.start()
         }
 
+        // Auth state listener
         DisposableEffect(Unit) {
             val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
                 currentUser = firebaseAuth.currentUser
@@ -250,6 +292,7 @@ class MainActivity : ComponentActivity() {
             onDispose { auth.removeAuthStateListener(listener) }
         }
 
+        // Navigate to home when logged in
         LaunchedEffect(currentUser) {
             if (currentUser != null) {
                 nav.navigate("home") {
@@ -287,6 +330,8 @@ class MainActivity : ComponentActivity() {
                         onJobsClick = { nav.navigate("jobs") },
                         onCreateJobClick = { nav.navigate("job_create") },
                         onRecommendationsClick = { nav.navigate("recommendations") },
+                        onSkillImpactClick = { nav.navigate("skill_impact") },
+                        onActionPlanClick = { nav.navigate("action_plan") },
                         onLogout = {
                             FirebaseAuth.getInstance().signOut()
                             nav.navigate("login") {
@@ -310,6 +355,19 @@ class MainActivity : ComponentActivity() {
 
                 composable("recommendations") {
                     RecommendationsScreen(
+                        onBack = { nav.popBackStack() }
+                    )
+                }
+
+                composable("action_plan") {
+                    ActionPlanScreen(
+                        onBack = { nav.popBackStack() }
+                    )
+                }
+
+                // new: skill impact screen
+                composable("skill_impact") {
+                    SkillImpactScreen(
                         onBack = { nav.popBackStack() }
                     )
                 }
