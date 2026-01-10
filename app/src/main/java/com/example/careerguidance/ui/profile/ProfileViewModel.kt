@@ -1,6 +1,7 @@
 package com.example.careerguidance.ui.profile
 
 import androidx.lifecycle.ViewModel
+import com.example.careerguidance.data.recommendation.SkillNormalizer
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -12,6 +13,8 @@ class ProfileViewModel : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
+
+    private val normalizer = SkillNormalizer()
 
     private val _uiState = MutableStateFlow(
         ProfileState(loading = true)
@@ -47,6 +50,10 @@ class ProfileViewModel : ViewModel() {
                 val phone = doc.getString("phone") ?: ""
                 val bio = doc.getString("bio") ?: ""
 
+                // load skills/interests (stored as arrays in Firestore)
+                val skillsRaw = (doc.get("skillsRaw") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                val interestsRaw = (doc.get("interestsRaw") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+
                 // if nameLocked is missing, treat non-empty name as already locked
                 val nameLocked = doc.getBoolean("nameLocked") ?: name.isNotBlank()
 
@@ -56,6 +63,8 @@ class ProfileViewModel : ViewModel() {
                     city = city,
                     phone = phone,
                     bio = bio,
+                    skillsText = skillsRaw.joinToString(", "),
+                    interestsText = interestsRaw.joinToString(", "),
                     nameEditable = !nameLocked,
                     loading = false,
                     error = null
@@ -74,7 +83,7 @@ class ProfileViewModel : ViewModel() {
 
     fun onNameChange(newName: String) {
         val current = _uiState.value
-        if (!current.nameEditable) return   // ignore changes if locked
+        if (!current.nameEditable) return
 
         _uiState.value = current.copy(
             name = newName,
@@ -107,6 +116,29 @@ class ProfileViewModel : ViewModel() {
         )
     }
 
+    fun onSkillsChange(newSkillsText: String) {
+        _uiState.value = _uiState.value.copy(
+            skillsText = newSkillsText,
+            error = null,
+            message = null
+        )
+    }
+
+    fun onInterestsChange(newInterestsText: String) {
+        _uiState.value = _uiState.value.copy(
+            interestsText = newInterestsText,
+            error = null,
+            message = null
+        )
+    }
+
+    private fun parseCommaSeparated(text: String): List<String> {
+        return text
+            .split(",", "\n", ";")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+    }
+
     fun saveProfile() {
         val user = auth.currentUser
         val current = _uiState.value
@@ -116,30 +148,46 @@ class ProfileViewModel : ViewModel() {
             return
         }
 
-        // name can be set only once
-        if (!current.nameEditable) {
-            _uiState.value = current.copy(error = "Name can only be set once")
-            return
-        }
-
-        if (current.name.isBlank()) {
-            _uiState.value = current.copy(error = "Name cannot be empty")
-            return
+        // only validate name if it is editable (first time)
+        if (current.nameEditable) {
+            if (current.name.isBlank()) {
+                _uiState.value = current.copy(error = "Name cannot be empty")
+                return
+            }
         }
 
         _uiState.value = current.copy(saving = true, error = null, message = null)
 
         val uid = user.uid
 
-        val data = mapOf(
-            "name" to current.name,
+        // skills: store both raw + normalized
+        val skillsRaw = parseCommaSeparated(current.skillsText)
+        val skillsNormalized = normalizer.normalizeAll(skillsRaw).toList()
+
+        val interestsRaw = parseCommaSeparated(current.interestsText)
+        val interestsNormalized = normalizer.normalizeAll(interestsRaw).toList()
+
+        val data = mutableMapOf<String, Any>(
             "email" to (current.email.ifBlank { user.email ?: "" }),
             "city" to current.city,
             "phone" to current.phone,
             "bio" to current.bio,
-            "createdAt" to FieldValue.serverTimestamp(),
-            "nameLocked" to true               // lock name after first save
+
+            "skillsRaw" to skillsRaw,
+            "skillsNormalized" to skillsNormalized,
+
+            "interestsRaw" to interestsRaw,
+            "interestsNormalized" to interestsNormalized,
+
+            "updatedAt" to FieldValue.serverTimestamp()
         )
+
+        // only set name + lock it the first time
+        if (current.nameEditable) {
+            data["name"] = current.name
+            data["nameLocked"] = true
+            data["createdAt"] = FieldValue.serverTimestamp()
+        }
 
         firestore.collection("users")
             .document(uid)
@@ -148,7 +196,7 @@ class ProfileViewModel : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     saving = false,
                     message = "Profile saved",
-                    nameEditable = false          // lock in UI as well
+                    nameEditable = false
                 )
             }
             .addOnFailureListener { e ->

@@ -8,13 +8,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.careerguidance.data.recommendation.SkillNormalizer
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -29,85 +31,103 @@ fun ProfileScreen(
     val firestore = FirebaseFirestore.getInstance()
     val context = LocalContext.current
 
+    val normalizer = remember { SkillNormalizer() }
+
     var role by remember { mutableStateOf("applicant") }
     var loading by remember { mutableStateOf(true) }
+    var saving by remember { mutableStateOf(false) }
 
-    // Common fields
     var email by remember { mutableStateOf(auth.currentUser?.email ?: "") }
-    var name by remember { mutableStateOf("") }
 
-    // Applicant fields (minimal set)
+    // name lock logic
+    var name by remember { mutableStateOf("") }
+    var nameLocked by remember { mutableStateOf(false) }
+
+    // applicant fields
     var location by remember { mutableStateOf("") }
     var educationLevel by remember { mutableStateOf("") }
     var major by remember { mutableStateOf("") }
-    var experienceYears by remember { mutableStateOf("") } // stored as number; edited as text
+    var experienceYears by remember { mutableStateOf("") } // digits only
     var goalRole by remember { mutableStateOf("") }
-    var githubUrl by remember { mutableStateOf("") }
-    var linkedinUrl by remember { mutableStateOf("") }
     var cvUrl by remember { mutableStateOf<String?>(null) }
 
-    // Per-field editing state
-    var editKey by remember { mutableStateOf<String?>(null) }
-    var editValue by remember { mutableStateOf("") }
+    // skills: multi-select
+    val skillOptions = remember {
+        listOf(
+            "kotlin",
+            "jetpack compose",
+            "mvvm",
+            "git",
+            "rest api",
+            "firebase auth",
+            "firebase firestore",
+            "room",
+            "coroutines",
+            "sql",
+            "postgresql",
+            "java",
+            "javascript",
+            "react",
+            "nodejs",
+            "docker",
+            "linux",
+            "testing",
+            "api testing",
+            "postman",
+            "python",
+            "statistics",
+            "machine learning",
+            "ui design",
+            "ux research",
+            "figma"
+        )
+    }
+    var selectedSkills by remember { mutableStateOf(setOf<String>()) }
 
-    fun startEdit(key: String, current: String) {
-        editKey = key
-        editValue = current
+    // dropdown/radio options
+    val educationOptions = remember {
+        listOf(
+            "High School",
+            "Diploma",
+            "Bachelor",
+            "Master",
+            "PhD",
+            "Other"
+        )
     }
 
-    fun cancelEdit() {
-        editKey = null
-        editValue = ""
+    val majorOptions = remember {
+        listOf(
+            "Information Technology",
+            "Computer Science",
+            "Software Engineering",
+            "Data Science",
+            "Cybersecurity",
+            "Business",
+            "Other"
+        )
     }
 
-    fun saveEdit() {
-        val key = editKey ?: return
-        if (uid == null) return
-
-        val trimmed = editValue.trim()
-
-        if (key == "experienceYears") {
-            if (trimmed.isNotBlank() && trimmed.toIntOrNull() == null) {
-                Toast.makeText(context, "Experience years must be a number", Toast.LENGTH_LONG).show()
-                return
-            }
-        }
-
-        val valueForFirestore: Any =
-            if (key == "experienceYears") (trimmed.toIntOrNull() ?: 0) else trimmed
-
-        firestore.collection("users")
-            .document(uid)
-            .update(mapOf(key to valueForFirestore))
-            .addOnSuccessListener {
-                when (key) {
-                    "name" -> name = trimmed
-                    "location" -> location = trimmed
-                    "educationLevel" -> educationLevel = trimmed
-                    "major" -> major = trimmed
-                    "experienceYears" -> experienceYears = trimmed
-                    "goalRole" -> goalRole = trimmed
-                    "githubUrl" -> githubUrl = trimmed
-                    "linkedinUrl" -> linkedinUrl = trimmed
-                }
-                Toast.makeText(context, "Updated", Toast.LENGTH_SHORT).show()
-                cancelEdit()
-            }
-            .addOnFailureListener { e ->
-                Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
-            }
+    val goalRoleOptions = remember {
+        listOf(
+            "Android Developer",
+            "Backend Developer",
+            "Frontend Developer",
+            "Full Stack Developer",
+            "QA Engineer",
+            "Data Analyst",
+            "DevOps Engineer",
+            "Cybersecurity Analyst",
+            "UI/UX Designer",
+            "Other"
+        )
     }
 
-    fun openLink(url: String) {
-        val u = url.trim()
-        if (u.isBlank()) return
-        val normalized = if (u.startsWith("http://") || u.startsWith("https://")) u else "https://$u"
-        try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(normalized)))
-        } catch (e: Exception) {
-            Toast.makeText(context, "Cannot open link", Toast.LENGTH_LONG).show()
-        }
-    }
+    // UI state for menus/dialogs
+    var educationExpanded by remember { mutableStateOf(false) }
+    var majorExpanded by remember { mutableStateOf(false) }
+    var skillsExpanded by remember { mutableStateOf(false) }
+    var goalDialogOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(uid) {
         if (uid == null) {
@@ -123,19 +143,71 @@ fun ProfileScreen(
                 email = doc.getString("email") ?: (auth.currentUser?.email ?: "")
 
                 name = doc.getString("name") ?: ""
+                nameLocked = doc.getBoolean("nameLocked") ?: name.isNotBlank()
+
+                // keep your existing field names (location, educationLevel, major, experienceYears, goalRole)
                 location = doc.getString("location") ?: ""
                 educationLevel = doc.getString("educationLevel") ?: ""
                 major = doc.getString("major") ?: ""
                 experienceYears = (doc.getLong("experienceYears") ?: 0L).toString()
                 goalRole = doc.getString("goalRole") ?: ""
-                githubUrl = doc.getString("githubUrl") ?: ""
-                linkedinUrl = doc.getString("linkedinUrl") ?: ""
                 cvUrl = doc.getString("cvUrl")
+
+                // skills saved as array: skillsRaw
+                val skillsRaw = (doc.get("skillsRaw") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                selectedSkills = skillsRaw.map { it.trim().lowercase() }.filter { it.isNotBlank() }.toSet()
 
                 loading = false
             }
-            .addOnFailureListener {
+            .addOnFailureListener { e ->
                 loading = false
+                Toast.makeText(context, e.message ?: "Failed to load profile", Toast.LENGTH_LONG).show()
+            }
+    }
+
+    fun saveProfile() {
+        if (uid == null) return
+
+        if (!nameLocked && name.trim().isBlank()) {
+            Toast.makeText(context, "Name cannot be empty", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val expInt = experienceYears.trim().toIntOrNull() ?: 0
+
+        val skillsRaw = selectedSkills.toList().sorted()
+        val skillsNormalized = normalizer.normalizeAll(skillsRaw).toList().sorted()
+
+        val data = mutableMapOf<String, Any>(
+            "email" to email,
+            "location" to location.trim(),
+            "educationLevel" to educationLevel.trim(),
+            "major" to major.trim(),
+            "experienceYears" to expInt,
+            "goalRole" to goalRole.trim(),
+            "skillsRaw" to skillsRaw,
+            "skillsNormalized" to skillsNormalized
+        )
+
+        // name can be set only once
+        if (!nameLocked) {
+            data["name"] = name.trim()
+            data["nameLocked"] = true
+        }
+
+        saving = true
+
+        firestore.collection("users")
+            .document(uid)
+            .update(data)
+            .addOnSuccessListener {
+                saving = false
+                nameLocked = true
+                Toast.makeText(context, "Profile saved", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener { e ->
+                saving = false
+                Toast.makeText(context, e.message ?: "Failed to save profile", Toast.LENGTH_LONG).show()
             }
     }
 
@@ -175,118 +247,232 @@ fun ProfileScreen(
                 .padding(bottom = 24.dp)
         ) {
 
-            // EMAIL (read-only)
             SectionTitle("Email")
             Text(email, style = MaterialTheme.typography.bodyLarge)
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // NAME
-            ProfileFieldReadOnlyOrEdit(
-                label = if (role == "company") "Company Name" else "Name",
-                value = name,
-                isEditing = editKey == "name",
-                editValue = editValue,
-                onEditClick = { startEdit("name", name) },
-                onValueChange = { editValue = it },
-                onSave = { saveEdit() },
-                onCancel = { cancelEdit() }
-            )
+            SectionTitle(if (role == "company") "Company Name" else "Name")
+
+            if (nameLocked) {
+                Text(
+                    text = if (name.isBlank()) "(not set)" else name,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "Name cannot be edited after it is set.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            } else {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Enter your name") }
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "You can set the name only once.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
 
             Spacer(Modifier.height(16.dp))
 
             if (role == "applicant") {
 
-                ProfileFieldReadOnlyOrEdit(
-                    label = "Location",
+                SectionTitle("Location")
+                OutlinedTextField(
                     value = location,
-                    isEditing = editKey == "location",
-                    editValue = editValue,
-                    onEditClick = { startEdit("location", location) },
-                    onValueChange = { editValue = it },
-                    onSave = { saveEdit() },
-                    onCancel = { cancelEdit() }
+                    onValueChange = { location = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("City / Country") }
                 )
 
                 Spacer(Modifier.height(16.dp))
 
-                ProfileFieldReadOnlyOrEdit(
-                    label = "Education Level",
-                    value = educationLevel,
-                    isEditing = editKey == "educationLevel",
-                    editValue = editValue,
-                    onEditClick = { startEdit("educationLevel", educationLevel) },
-                    onValueChange = { editValue = it },
-                    onSave = { saveEdit() },
-                    onCancel = { cancelEdit() }
-                )
+                SectionTitle("Education Level")
+                ExposedDropdownMenuBox(
+                    expanded = educationExpanded,
+                    onExpandedChange = { educationExpanded = !educationExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = educationLevel,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        placeholder = { Text("Select education level") }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = educationExpanded,
+                        onDismissRequest = { educationExpanded = false }
+                    ) {
+                        educationOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    educationLevel = option
+                                    educationExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
 
                 Spacer(Modifier.height(16.dp))
 
-                ProfileFieldReadOnlyOrEdit(
-                    label = "Major / Field of Study",
-                    value = major,
-                    isEditing = editKey == "major",
-                    editValue = editValue,
-                    onEditClick = { startEdit("major", major) },
-                    onValueChange = { editValue = it },
-                    onSave = { saveEdit() },
-                    onCancel = { cancelEdit() }
-                )
+                SectionTitle("Major / Field of Study")
+                ExposedDropdownMenuBox(
+                    expanded = majorExpanded,
+                    onExpandedChange = { majorExpanded = !majorExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = major,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        placeholder = { Text("Select major / field") }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = majorExpanded,
+                        onDismissRequest = { majorExpanded = false }
+                    ) {
+                        majorOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    major = option
+                                    majorExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
 
                 Spacer(Modifier.height(16.dp))
 
-                ProfileFieldReadOnlyOrEdit(
-                    label = "Experience Years",
+                SectionTitle("Experience Years")
+                OutlinedTextField(
                     value = experienceYears,
-                    isEditing = editKey == "experienceYears",
-                    editValue = editValue,
-                    onEditClick = { startEdit("experienceYears", experienceYears) },
-                    onValueChange = { editValue = it },
-                    onSave = { saveEdit() },
-                    onCancel = { cancelEdit() }
+                    onValueChange = { input ->
+                        // digits only
+                        experienceYears = input.filter { it.isDigit() }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    placeholder = { Text("0") }
                 )
 
                 Spacer(Modifier.height(16.dp))
 
-                ProfileFieldReadOnlyOrEdit(
-                    label = "Goal Role",
+                SectionTitle("Goal Career")
+                OutlinedTextField(
                     value = goalRole,
-                    isEditing = editKey == "goalRole",
-                    editValue = editValue,
-                    onEditClick = { startEdit("goalRole", goalRole) },
-                    onValueChange = { editValue = it },
-                    onSave = { saveEdit() },
-                    onCancel = { cancelEdit() }
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Select goal career") },
+                    trailingIcon = {
+                        TextButton(onClick = { goalDialogOpen = true }) {
+                            Text("Choose")
+                        }
+                    }
                 )
+
+                if (goalDialogOpen) {
+                    var tempSelection by remember { mutableStateOf(goalRole) }
+
+                    AlertDialog(
+                        onDismissRequest = { goalDialogOpen = false },
+                        title = { Text("Select goal career") },
+                        text = {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                goalRoleOptions.forEach { option ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        RadioButton(
+                                            selected = tempSelection == option,
+                                            onClick = { tempSelection = option }
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(option)
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                goalRole = tempSelection
+                                goalDialogOpen = false
+                            }) { Text("OK") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { goalDialogOpen = false }) { Text("Cancel") }
+                        }
+                    )
+                }
 
                 Spacer(Modifier.height(16.dp))
 
-                ProfileLinkField(
-                    label = "GitHub",
-                    value = githubUrl,
-                    isEditing = editKey == "githubUrl",
-                    editValue = editValue,
-                    onEditClick = { startEdit("githubUrl", githubUrl) },
-                    onValueChange = { editValue = it },
-                    onSave = { saveEdit() },
-                    onCancel = { cancelEdit() },
-                    onOpen = { openLink(githubUrl) }
-                )
+                SectionTitle("Skills")
+                ExposedDropdownMenuBox(
+                    expanded = skillsExpanded,
+                    onExpandedChange = { skillsExpanded = !skillsExpanded }
+                ) {
+                    val display = if (selectedSkills.isEmpty()) {
+                        ""
+                    } else {
+                        "${selectedSkills.size} selected"
+                    }
 
-                Spacer(Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = display,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        placeholder = { Text("Select skills") }
+                    )
 
-                ProfileLinkField(
-                    label = "LinkedIn",
-                    value = linkedinUrl,
-                    isEditing = editKey == "linkedinUrl",
-                    editValue = editValue,
-                    onEditClick = { startEdit("linkedinUrl", linkedinUrl) },
-                    onValueChange = { editValue = it },
-                    onSave = { saveEdit() },
-                    onCancel = { cancelEdit() },
-                    onOpen = { openLink(linkedinUrl) }
-                )
+                    ExposedDropdownMenu(
+                        expanded = skillsExpanded,
+                        onDismissRequest = { skillsExpanded = false }
+                    ) {
+                        skillOptions.forEach { skill ->
+                            val checked = selectedSkills.contains(skill)
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Checkbox(
+                                            checked = checked,
+                                            onCheckedChange = null
+                                        )
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(skill)
+                                    }
+                                },
+                                onClick = {
+                                    selectedSkills = if (checked) {
+                                        selectedSkills - skill
+                                    } else {
+                                        selectedSkills + skill
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
 
                 Spacer(Modifier.height(24.dp))
 
@@ -311,9 +497,29 @@ fun ProfileScreen(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
+
+                Spacer(Modifier.height(24.dp))
+
+                Button(
+                    onClick = { saveProfile() },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !saving
+                ) {
+                    Text(if (saving) "Saving..." else "Save Profile")
+                }
+            } else {
+                // company users: keep it simple for now (name + email + logout)
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = { saveProfile() },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !saving
+                ) {
+                    Text(if (saving) "Saving..." else "Save Profile")
+                }
             }
 
-            Spacer(Modifier.height(36.dp))
+            Spacer(Modifier.height(24.dp))
 
             Button(
                 onClick = onLogout,
@@ -330,107 +536,4 @@ fun ProfileScreen(
 private fun SectionTitle(text: String) {
     Text(text, style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(6.dp))
-}
-
-@Composable
-private fun ProfileFieldReadOnlyOrEdit(
-    label: String,
-    value: String,
-    isEditing: Boolean,
-    editValue: String,
-    onEditClick: () -> Unit,
-    onValueChange: (String) -> Unit,
-    onSave: () -> Unit,
-    onCancel: () -> Unit
-) {
-    Text(label, style = MaterialTheme.typography.titleMedium)
-    Spacer(Modifier.height(6.dp))
-
-    if (!isEditing) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = if (value.isBlank()) "(not set)" else value,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f)
-            )
-            IconButton(onClick = onEditClick) {
-                Icon(Icons.Filled.Edit, contentDescription = "Edit $label")
-            }
-        }
-    } else {
-        OutlinedTextField(
-            value = editValue,
-            onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(Modifier.height(10.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Button(onClick = onSave, modifier = Modifier.weight(1f)) { Text("Save") }
-            OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
-        }
-    }
-}
-
-@Composable
-private fun ProfileLinkField(
-    label: String,
-    value: String,
-    isEditing: Boolean,
-    editValue: String,
-    onEditClick: () -> Unit,
-    onValueChange: (String) -> Unit,
-    onSave: () -> Unit,
-    onCancel: () -> Unit,
-    onOpen: () -> Unit
-) {
-    Text(label, style = MaterialTheme.typography.titleMedium)
-    Spacer(Modifier.height(6.dp))
-
-    if (!isEditing) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (value.isBlank()) "(not set)" else value,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = onEditClick) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Edit $label")
-                }
-            }
-            if (value.isNotBlank()) {
-                Spacer(Modifier.height(6.dp))
-                OutlinedButton(
-                    onClick = onOpen,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Open $label")
-                }
-            }
-        }
-    } else {
-        OutlinedTextField(
-            value = editValue,
-            onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("example.com or https://example.com") }
-        )
-        Spacer(Modifier.height(10.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Button(onClick = onSave, modifier = Modifier.weight(1f)) { Text("Save") }
-            OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
-        }
-    }
 }

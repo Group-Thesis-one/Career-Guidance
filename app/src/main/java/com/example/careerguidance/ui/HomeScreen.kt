@@ -17,6 +17,7 @@ fun HomeScreen(
     onUploadCvClick: () -> Unit,
     onJobsClick: () -> Unit,
     onCreateJobClick: () -> Unit,
+    onRecommendationsClick: () -> Unit,
     onLogout: () -> Unit
 ) {
     val auth = FirebaseAuth.getInstance()
@@ -115,6 +116,18 @@ fun HomeScreen(
             }
 
             Spacer(Modifier.height(12.dp))
+
+            // new: recommendations (applicant only)
+            if (role != "company") {
+                Button(
+                    onClick = onRecommendationsClick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Career Recommendations")
+                }
+
+                Spacer(Modifier.height(12.dp))
+            }
 
             Button(
                 onClick = onProfileClick,

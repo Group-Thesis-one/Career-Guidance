@@ -1,0 +1,177 @@
+[
+  {
+    "id": "android_dev",
+    "title": "Android Developer",
+    "requiredSkills": ["kotlin", "jetpack compose", "mvvm", "git", "rest api"],
+    "optionalSkills": ["firebase auth", "firebase firestore", "room", "coroutines"],
+    "tags": ["mobile", "android"]
+  },
+  {
+    "id": "android_intern",
+    "title": "Android Developer Intern",
+    "requiredSkills": ["kotlin", "git", "rest api"],
+    "optionalSkills": ["jetpack compose", "mvvm", "firebase firestore"],
+    "tags": ["mobile", "android"]
+  },
+  {
+    "id": "backend_node",
+    "title": "Backend Developer (Node.js)",
+    "requiredSkills": ["nodejs", "rest api", "sql", "git"],
+    "optionalSkills": ["postgresql", "jwt", "docker"],
+    "tags": ["backend", "api"]
+  },
+  {
+    "id": "backend_java",
+    "title": "Backend Developer (Java/Spring)",
+    "requiredSkills": ["java", "rest api", "sql", "git"],
+    "optionalSkills": ["spring", "jwt", "docker"],
+    "tags": ["backend", "api"]
+  },
+  {
+    "id": "fullstack_web",
+    "title": "Full Stack Web Developer",
+    "requiredSkills": ["javascript", "rest api", "sql", "git"],
+    "optionalSkills": ["react", "nodejs", "docker"],
+    "tags": ["web", "fullstack"]
+  },
+  {
+    "id": "frontend_react",
+    "title": "Frontend Developer (React)",
+    "requiredSkills": ["javascript", "react", "git"],
+    "optionalSkills": ["typescript", "rest api", "ui design"],
+    "tags": ["web", "frontend"]
+  },
+  {
+    "id": "uiux_designer",
+    "title": "UI/UX Designer",
+    "requiredSkills": ["ui design", "ux research", "wireframing"],
+    "optionalSkills": ["prototyping", "figma", "accessibility"],
+    "tags": ["design", "ux"]
+  },
+  {
+    "id": "qa_manual",
+    "title": "QA Engineer (Manual Testing)",
+    "requiredSkills": ["testing", "test cases", "bug reporting"],
+    "optionalSkills": ["api testing", "sql", "postman"],
+    "tags": ["testing", "quality"]
+  },
+  {
+    "id": "qa_automation",
+    "title": "QA Automation Engineer",
+    "requiredSkills": ["testing", "automation", "git", "api testing"],
+    "optionalSkills": ["selenium", "postman", "ci/cd"],
+    "tags": ["testing", "automation"]
+  },
+  {
+    "id": "devops_junior",
+    "title": "Junior DevOps Engineer",
+    "requiredSkills": ["git", "docker", "linux"],
+    "optionalSkills": ["ci/cd", "kubernetes", "cloud"],
+    "tags": ["devops", "cloud"]
+  },
+  {
+    "id": "cloud_engineer",
+    "title": "Cloud Engineer",
+    "requiredSkills": ["cloud", "linux", "networking"],
+    "optionalSkills": ["docker", "kubernetes", "ci/cd"],
+    "tags": ["cloud", "infrastructure"]
+  },
+  {
+    "id": "data_analyst",
+    "title": "Data Analyst",
+    "requiredSkills": ["sql", "data analysis", "excel"],
+    "optionalSkills": ["python", "data visualization", "statistics"],
+    "tags": ["data", "analytics"]
+  },
+  {
+    "id": "data_scientist_junior",
+    "title": "Junior Data Scientist",
+    "requiredSkills": ["python", "statistics", "data analysis"],
+    "optionalSkills": ["machine learning", "data visualization", "sql"],
+    "tags": ["data", "ml"]
+  },
+  {
+    "id": "ml_engineer_junior",
+    "title": "Junior Machine Learning Engineer",
+    "requiredSkills": ["python", "machine learning", "data analysis"],
+    "optionalSkills": ["model deployment", "docker", "sql"],
+    "tags": ["ml", "ai"]
+  },
+  {
+    "id": "cybersecurity_analyst",
+    "title": "Cybersecurity Analyst",
+    "requiredSkills": ["security basics", "networking", "linux"],
+    "optionalSkills": ["incident response", "vulnerability assessment", "siem"],
+    "tags": ["security", "cybersecurity"]
+  },
+  {
+    "id": "mobile_flutter",
+    "title": "Flutter Developer",
+    "requiredSkills": ["dart", "git", "rest api"],
+    "optionalSkills": ["firebase auth", "firebase firestore", "ui design"],
+    "tags": ["mobile", "cross-platform"]
+  },
+  {
+    "id": "ios_dev",
+    "title": "iOS Developer",
+    "requiredSkills": ["swift", "git", "rest api"],
+    "optionalSkills": ["mvvm", "ui design", "testing"],
+    "tags": ["mobile", "ios"]
+  },
+  {
+    "id": "database_admin_junior",
+    "title": "Junior Database Administrator",
+    "requiredSkills": ["sql", "postgresql", "backup"],
+    "optionalSkills": ["performance tuning", "linux", "security basics"],
+    "tags": ["database", "infrastructure"]
+  },
+  {
+    "id": "product_manager_junior",
+    "title": "Junior Product Manager",
+    "requiredSkills": ["communication", "requirements", "user research"],
+    "optionalSkills": ["roadmapping", "analytics", "agile"],
+    "tags": ["product", "management"]
+  },
+  {
+    "id": "project_manager_junior",
+    "title": "Junior Project Manager",
+    "requiredSkills": ["communication", "planning", "agile"],
+    "optionalSkills": ["scrum", "risk management", "documentation"],
+    "tags": ["management", "project"]
+  },
+  {
+    "id": "system_admin_junior",
+    "title": "Junior System Administrator",
+    "requiredSkills": ["linux", "networking", "troubleshooting"],
+    "optionalSkills": ["security basics", "backup", "scripting"],
+    "tags": ["infrastructure", "it support"]
+  },
+  {
+    "id": "it_support",
+    "title": "IT Support Specialist",
+    "requiredSkills": ["troubleshooting", "communication", "networking"],
+    "optionalSkills": ["windows", "linux", "ticketing"],
+    "tags": ["it support", "helpdesk"]
+  },
+  {
+    "id": "business_analyst_junior",
+    "title": "Junior Business Analyst",
+    "requiredSkills": ["communication", "requirements", "documentation"],
+    "optionalSkills": ["sql", "analytics", "process mapping"],
+    "tags": ["business", "analysis"]
+  },
+  {
+    "id": "game_dev_junior",
+    "title": "Junior Game Developer",
+    "requiredSkills": ["programming", "git", "problem solving"],
+    "optionalSkills": ["unity", "csharp", "graphics basics"],
+    "tags": ["games", "development"]
+  },
+  {
+    "id": "software_engineer_junior",
+    "title": "Junior Software Engineer",
+    "requiredSkills": ["programming", "git", "problem solving"],
+    "optionalSkills": ["testing", "rest api", "sql"],
+    "tags": ["software", "development"]
+  }
+]

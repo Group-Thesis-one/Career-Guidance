@@ -6,7 +6,13 @@ data class ProfileState(
     val city: String = "",
     val phone: String = "",
     val bio: String = "",
-    val nameEditable: Boolean = true,   // can user edit name?
+
+    // new fields for recommendations
+    // user types comma-separated values like: "Kotlin, Compose, MVVM"
+    val skillsText: String = "",
+    val interestsText: String = "",
+
+    val nameEditable: Boolean = true,
     val loading: Boolean = false,
     val saving: Boolean = false,
     val error: String? = null,

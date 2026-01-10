@@ -27,10 +27,11 @@ import com.example.careerguidance.data.SupabaseConfig
 import com.example.careerguidance.ui.auth.LoginScreen
 import com.example.careerguidance.ui.auth.SignupScreen
 import com.example.careerguidance.ui.home.HomeScreen
+import com.example.careerguidance.ui.jobs.ApplicantsListScreen
 import com.example.careerguidance.ui.jobs.JobCreateScreen
 import com.example.careerguidance.ui.jobs.JobsListingScreen
-import com.example.careerguidance.ui.jobs.ApplicantsListScreen
 import com.example.careerguidance.ui.profile.ProfileScreen
+import com.example.careerguidance.ui.recommendation.RecommendationsScreen
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.firebase.auth.FirebaseAuth
@@ -240,7 +241,7 @@ class MainActivity : ComponentActivity() {
 
                 composable("signup") {
                     SignupScreen(
-                        onSignupSuccess = { /* auth listener will navigate */ },
+                        onSignupSuccess = { },
                         onBackToLogin = { nav.navigate("login") }
                     )
                 }
@@ -251,6 +252,7 @@ class MainActivity : ComponentActivity() {
                         onUploadCvClick = { uploadCvLauncher.launch(arrayOf("application/pdf")) },
                         onJobsClick = { nav.navigate("jobs") },
                         onCreateJobClick = { nav.navigate("job_create") },
+                        onRecommendationsClick = { nav.navigate("recommendations") },
                         onLogout = {
                             FirebaseAuth.getInstance().signOut()
                             nav.navigate("login") {
@@ -269,6 +271,13 @@ class MainActivity : ComponentActivity() {
                                 popUpTo("home") { inclusive = true }
                             }
                         }
+                    )
+                }
+
+                // new: recommendations screen
+                composable("recommendations") {
+                    RecommendationsScreen(
+                        onBack = { nav.popBackStack() }
                     )
                 }
 

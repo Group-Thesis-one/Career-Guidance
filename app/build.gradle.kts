@@ -36,56 +36,39 @@ android {
 }
 
 dependencies {
+    // Compose (use BOM only)
     implementation(platform(libs.compose.bom))
     implementation(libs.androidx.compose.ui)
+    implementation("androidx.compose.ui:ui-text") // KeyboardOptions is here
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation("androidx.compose.ui:ui-tooling")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
 
-    implementation(platform(libs.firebase.bom))
-    implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation("com.google.firebase:firebase-analytics")
-    // Firebase Authentication
-    implementation(libs.firebase.auth)
+    // Navigation + ViewModel Compose
+    implementation("androidx.navigation:navigation-compose:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
 
-    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    // Icons
+    implementation(libs.androidx.compose.material.iconsExtended)
+
+    // Firebase (keep ONE BOM)
+    implementation(platform(libs.firebase.bom))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
+    implementation("com.google.firebase:firebase-analytics")
 
+    // Google Sign-In
+    implementation(libs.google.auth) // or: "com.google.android.gms:play-services-auth:21.2.0"
 
-    // Google Sign-In (Identity API)
-    implementation(libs.google.auth)
-    implementation(platform("com.google.firebase:firebase-bom:33.3.0"))
-    // Firebase
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.android.gms:play-services-auth:21.2.0")
-    // Jetpack Compose
-    implementation("androidx.compose.ui:ui:1.6.7")
-    implementation("androidx.compose.material3:material3:1.2.1")
-    implementation("androidx.compose.ui:ui-tooling-preview:1.6.7")
-    implementation("androidx.compose.foundation:foundation:1.6.7")
-    implementation("androidx.activity:activity-compose:1.9.0")
-    // Navigation Compose
-    implementation("androidx.navigation:navigation-compose:2.7.0")
-    // ViewModel Compose
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
-
-    //icons
-    implementation(libs.androidx.compose.material.iconsExtended)
-
-    //supabase
+    // Supabase upload + JSON
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.code.gson:gson:2.10.1")
+}
 
-
-
-    // Optional
-    debugImplementation("androidx.compose.ui:ui-tooling:1.6.7")
-
-
-    }
