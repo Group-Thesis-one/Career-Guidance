@@ -25,9 +25,9 @@ import androidx.navigation.compose.rememberNavController
 import com.example.careerguidance.data.SupabaseConfig
 import com.example.careerguidance.data.cv.CvParser
 import com.example.careerguidance.data.recommendation.SkillNormalizer
+import com.example.careerguidance.ui.HomeScreen
 import com.example.careerguidance.ui.auth.LoginScreen
 import com.example.careerguidance.ui.auth.SignupScreen
-import com.example.careerguidance.ui.HomeScreen
 import com.example.careerguidance.ui.impact.SkillImpactScreen
 import com.example.careerguidance.ui.jobs.ApplicantsListScreen
 import com.example.careerguidance.ui.jobs.JobCreateScreen
@@ -35,6 +35,7 @@ import com.example.careerguidance.ui.jobs.JobsListingScreen
 import com.example.careerguidance.ui.plan.ActionPlanScreen
 import com.example.careerguidance.ui.profile.ProfileScreen
 import com.example.careerguidance.ui.recommendation.RecommendationsScreen
+import com.example.careerguidance.ui.theme.CareerGuidanceTheme
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.firebase.auth.FirebaseAuth
@@ -69,7 +70,6 @@ class MainActivity : ComponentActivity() {
                         val user = auth.currentUser ?: return@addOnSuccessListener
                         val uid = user.uid
 
-                        // Block company accounts from Google sign-in
                         firestore.collection("users")
                             .document(uid)
                             .get()
@@ -94,7 +94,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { App() }
+
+        setContent {
+            CareerGuidanceTheme(
+                dynamicColor = false
+            ) {
+                App()
+            }
+        }
     }
 
     @androidx.compose.runtime.Composable
@@ -152,7 +159,6 @@ class MainActivity : ComponentActivity() {
 
             Thread {
                 try {
-                    // 1) Parse CV locally (no API)
                     val normalizer = SkillNormalizer()
                     val skillOptions = listOf(
                         "kotlin", "jetpack compose", "mvvm", "git", "rest api",
@@ -175,7 +181,6 @@ class MainActivity : ComponentActivity() {
                         null
                     }
 
-                    // 2) Upload to Supabase
                     val response: Response = httpClient.newCall(request).execute()
                     val bodyText = response.body?.string() ?: ""
 
@@ -190,7 +195,6 @@ class MainActivity : ComponentActivity() {
                         return@Thread
                     }
 
-                    // 3) Save cvUrl + extracted profile fields to Firestore
                     val publicUrl =
                         "${SupabaseConfig.SUPABASE_URL}/storage/v1/object/public/${SupabaseConfig.SUPABASE_BUCKET}/$objectPath"
 
@@ -208,7 +212,6 @@ class MainActivity : ComponentActivity() {
                         extracted.phone?.let { userData["phone"] = it }
                     }
 
-                    // Name: set only once (if not locked and currently empty)
                     firestore.collection("users")
                         .document(uid)
                         .get()
@@ -283,7 +286,6 @@ class MainActivity : ComponentActivity() {
             }.start()
         }
 
-        // Auth state listener
         DisposableEffect(Unit) {
             val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
                 currentUser = firebaseAuth.currentUser
@@ -292,7 +294,6 @@ class MainActivity : ComponentActivity() {
             onDispose { auth.removeAuthStateListener(listener) }
         }
 
-        // Navigate to home when logged in
         LaunchedEffect(currentUser) {
             if (currentUser != null) {
                 nav.navigate("home") {
@@ -365,7 +366,6 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                // new: skill impact screen
                 composable("skill_impact") {
                     SkillImpactScreen(
                         onBack = { nav.popBackStack() }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,6 +60,7 @@ fun HomeScreen(
     var loading by remember { mutableStateOf(true) }
 
     var goalDialogOpen by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf("home") }
 
     val goalRoleOptions = remember {
         listOf(
@@ -126,14 +128,28 @@ fun HomeScreen(
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    selected = true,
-                    onClick = { },
+                    selected = selectedTab == "home",
+                    onClick = { selectedTab = "home" },
                     icon = { Icon(Icons.Filled.Home, contentDescription = "Home") },
                     label = { Text("Home") }
                 )
+
                 NavigationBarItem(
-                    selected = false,
-                    onClick = onLogout,
+                    selected = selectedTab == "profile",
+                    onClick = {
+                        selectedTab = "profile"
+                        onProfileClick()
+                    },
+                    icon = { Icon(Icons.Filled.Person, contentDescription = "Profile") },
+                    label = { Text("Profile") }
+                )
+
+                NavigationBarItem(
+                    selected = selectedTab == "logout",
+                    onClick = {
+                        selectedTab = "logout"
+                        onLogout()
+                    },
                     icon = { Icon(Icons.Filled.Logout, contentDescription = "Logout") },
                     label = { Text("Logout") }
                 )
@@ -168,7 +184,6 @@ fun HomeScreen(
 
             Spacer(Modifier.height(18.dp))
 
-            // 1) view job openings
             Button(
                 onClick = onJobsClick,
                 modifier = Modifier.fillMaxWidth()
@@ -188,15 +203,7 @@ fun HomeScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                Button(
-                    onClick = onProfileClick,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Go to Profile")
-                }
-
             } else {
-                // 2) upload / update cv
                 Button(
                     onClick = { onUploadCvClick() },
                     modifier = Modifier.fillMaxWidth()
@@ -206,7 +213,6 @@ fun HomeScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                // 3) set career goal
                 Button(
                     onClick = { goalDialogOpen = true },
                     modifier = Modifier.fillMaxWidth()
@@ -224,7 +230,6 @@ fun HomeScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                // 4) career recommendations
                 Button(
                     onClick = onRecommendationsClick,
                     modifier = Modifier.fillMaxWidth()
@@ -234,7 +239,6 @@ fun HomeScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                // 5) my action plan
                 Button(
                     onClick = onActionPlanClick,
                     modifier = Modifier.fillMaxWidth()
@@ -244,7 +248,6 @@ fun HomeScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                // 6) how we helped improve your skills
                 Button(
                     onClick = onSkillImpactClick,
                     modifier = Modifier.fillMaxWidth()
@@ -253,14 +256,6 @@ fun HomeScreen(
                 }
 
                 Spacer(Modifier.height(12.dp))
-
-                // 7) go to profile
-                Button(
-                    onClick = onProfileClick,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Go to Profile")
-                }
             }
         }
 
